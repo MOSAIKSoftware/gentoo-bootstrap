@@ -360,7 +360,7 @@ bs_install_initrfamfs() {
 	mount -t sysfs none /sys || rescue_shell
 
 	sleep 2
-	/sbin/mdadm --assemble --scan || rescue_shell
+	/sbin/mdadm --assemble /dev/md0 --name=root || rescue_shell
 	sleep 2
 
 	mount -o ro /dev/md0 /mnt/root || rescue_shell
