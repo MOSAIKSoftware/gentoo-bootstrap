@@ -336,10 +336,34 @@ bs_install_initrfamfs() {
 
 	chroot_run 'mkdir -p /usr/src/initramfs'
 	chroot_run 'cd /usr/src/initramfs && mkdir -p bin lib dev etc mnt/root proc root sbin sys'
-	chroot_run 'cp -a /dev/{null,console,tty,md,md?,sd*} /usr/src/initramfs/dev/'
+
+	# devices
+	chroot_run 'cp -a /dev/{null,console,tty,md,md?,sd*,urandom,random} /usr/src/initramfs/dev/'
+
+	# mdadm stuff
 	chroot_run 'cp -a /sbin/mdadm /usr/src/initramfs/sbin/'
+
+	# dropbear
+	chroot_run 'mkdir -p /usr/src/initramfs/etc/dropbear'
+	chroot_run 'cp -a /usr/sbin/dropbear /usr/src/initramfs/sbin/'
+	chroot_run 'cp -a /usr/bin/{dropbearkey,dbclient,dropbearconvert,dbscp} /usr/src/initramfs/bin/'
+	chroot_run 'cp -a /lib64/libz.so* /lib64/libcrypt.so* /lib64/libcrypt-*.so* /lib64/libutil* /lib64/ld-* /lib64/libc.so* /lib64/libc-*.so* /lib64/libnss* /lib64/libnsl* /usr/src/initramfs/lib64/'
+
+	# busybox and symlinks
 	chroot_run 'cp -a /bin/busybox /usr/src/initramfs/bin/busybox'
-	chroot_run 'chroot /usr/src/initramfs /bin/busybox --install -s' # install busybox symlinks
+	chroot_run 'chroot /usr/src/initramfs /bin/busybox --install -s'
+
+	# needed for dropbear
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/passwd
+	root:x:0:0:root:/root:/bin/sh
+	EOF
+
+	# needed for dropbear
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/group
+	root:x:0:root
+	EOF
+
+	# TODO: copy pubkeys
 
 	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/mdadm.conf
 	DEVICE /dev/sd?*
@@ -358,14 +382,32 @@ bs_install_initrfamfs() {
 
 	mount -t proc none /proc || rescue_shell
 	mount -t sysfs none /sys || rescue_shell
+	mdev -s || rescue_shell
+	mkdir /dev/pts || rescue_shell
+	mount -t devpts /dev/pts /dev/pts || rescue_shell
 
-	sleep 2
+	# start network
+	ifconfig eth0 ${IPV4_IP}
+	sleep 4
+	route add default gw ${IPV4_DEF_ROUTE}
+
+	# start dropbear
+	dropbear -R -s -m -p 22922
+
 	/sbin/mdadm --assemble /dev/md0 --name=root || rescue_shell
 	sleep 2
 
+	# clean up networking
+	killall dropbear
+	route del default gw ${IPV4_DEF_ROUTE}
+	ifconfig eth0 down
+	ip addr flush dev eth0
+
+	# cleanup
 	mount -o ro /dev/md0 /mnt/root || rescue_shell
 	umount /proc || rescue_shell
 	umount /sys || rescue_shell
+
 	exec switch_root /mnt/root /sbin/init || rescue_shell
 	EOF
 
