@@ -407,7 +407,7 @@ bs_install_initrfamfs() {
 	route add default gw ${IPV4_DEF_ROUTE}
 	_timeout=0
 	while ! ping -c 1 -W 1 ${IPV4_DEF_ROUTE} > /dev/null && [ \${_timeout} -lt 15 ] ; do
-		echo "Waiting for 192.168.0.12 - network interface might be down..."
+		echo "Waiting for ${IPV4_IP} - network interface might be down..."
 		_timeout=\$(( \${_timeout} + 1 ))
 		sleep 1
 	done
