@@ -133,7 +133,7 @@ bs_create_cfg_files() {
 	chmod +x "${mntgentoo}"/etc/init.d/docker-services || die
 
 	# update mdadm.conf, important for initramfs!
-	cat <<-EOF > "${mntgentoo}"/etc/mdadm.conf
+	cat <<-EOF > "${mntgentoo}"/etc/mdadm.conf || die "cat failed"
 	DEVICE /dev/sd?*
 	ARRAY /dev/md0 metadata=1.2 name=root
 	ARRAY /dev/md1 metadata=1.2 name=swap
@@ -326,63 +326,26 @@ bs_install_server_set() {
 bs_install_kernel() {
 	# alternatively: wget http://bin.vm03.srvhub.de/kernel-4.2.5
 
-	chroot_run 'cp /etc/paludis/kernel/config /usr/src/linux/.config'
-	chroot_run 'cd /usr/src/linux && make olddefconfig'
-	chroot_run 'cd /usr/src/linux && make -j4 && make modules_install && cp arch/x86/boot/bzImage /boot/kernel-$(readlink /usr/src/linux | sed "s/linux-//")'
+	cp ./mkkernel.sh "${mntgentoo}"/sbin/mkkernel.sh
+	chroot_run 'chmod +x /sbin/mkkernel.sh'
+	chroot_run '/sbin/mkkernel.sh'
 }
 
 bs_install_initrfamfs() {
 	# alternatively: wget http://bin.vm03.srvhub.de/initrd-4.2.4
 
-	chroot_run 'mkdir -p /usr/src/initramfs'
-	chroot_run 'cd /usr/src/initramfs && mkdir -p bin lib dev etc mnt/root proc root sbin sys'
-	chroot_run 'cp -a /dev/{null,console,tty,md,md?,sd*} /usr/src/initramfs/dev/'
-	chroot_run 'cp -a /sbin/mdadm /usr/src/initramfs/sbin/'
-	chroot_run 'cp -a /bin/busybox /usr/src/initramfs/bin/busybox'
-	chroot_run 'chroot /usr/src/initramfs /bin/busybox --install -s' # install busybox symlinks
-
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/mdadm.conf
-	DEVICE /dev/sd?*
-	ARRAY /dev/md0 metadata=1.2 name=root
-	EOF
-
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/init  || die "cat failed"
-	#!/bin/busybox sh
-
-	rescue_shell() {
-		echo "Something went wrong. Dropping you to a shell."
-		exec /bin/sh
-	}
-
-	echo "This script mounts rootfs and boots it up, nothing more!"
-
-	mount -t proc none /proc || rescue_shell
-	mount -t sysfs none /sys || rescue_shell
-
-	sleep 2
-	/sbin/mdadm --assemble /dev/md0 --name=root || rescue_shell
-	sleep 2
-
-	mount -o ro /dev/md0 /mnt/root || rescue_shell
-	umount /proc || rescue_shell
-	umount /sys || rescue_shell
-	exec switch_root /mnt/root /sbin/init || rescue_shell
-	EOF
-
-	chroot_run 'chmod +x /usr/src/initramfs/init'
-	chroot_run 'cd /usr/src/initramfs && find . -print0 | cpio --null -ov --format=newc | gzip -9 > /boot/initrd'
+	cp ./mkinitrd.sh "${mntgentoo}"/sbin/mkinitrd.sh
+	chroot_run 'chmod +x /sbin/mkinitrd.sh'
+	chroot_run '/sbin/mkinitrd.sh'
 }
 
 
 bs_install_grub() {
 	# grub
-	sed -i -r \
-		-e 's#^[[:space:]]*initrd=#  initrd=initrd#' \
-		"${mntgentoo}"/etc/grub.d/10_linux || die
-	echo 'GRUB_CMDLINE_LINUX="net.ifnames=0"' >> "${mntgentoo}"/etc/default/grub
-	chroot_run 'grub2-install /dev/sda'
-	chroot_run 'grub2-install /dev/sdb'
-	chroot_run 'grub2-mkconfig -o /boot/grub/grub.cfg'
+
+	cp ./update-grub.sh "${mntgentoo}"/sbin/update-grub.sh
+	chroot_run 'chmod +x /sbin/update-grub.sh'
+	chroot_run '/sbin/update-grub.sh'
 }
 
 bs_update_runlevels() {
