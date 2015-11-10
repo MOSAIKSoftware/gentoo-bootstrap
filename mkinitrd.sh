@@ -121,7 +121,11 @@ EOF
 
 chmod +x "${initrd_dir}"/init || die
 
-cd "${initrd_dir}" || die
-find . -print0 | cpio --null -ov --format=newc | gzip -9 > /boot/initrd || die
+if [[ -e /boot/initrd ]] ; then
+	die "/boot/initrd already exists! Back it up first."
+else
+	cd "${initrd_dir}" || die
+	find . -print0 | cpio --null -ov --format=newc | gzip -9 > /boot/initrd || die
+fi
 
 popd
