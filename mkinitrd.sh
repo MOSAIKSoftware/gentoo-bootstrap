@@ -15,6 +15,10 @@ if [[ -z ${IPV4_IP} ||
 	die "some required environment variables have not been set!"
 fi
 
+if [[ -e ${initrd_dir} ]] ; then
+	die "${initrd_dir} already exists! Back it up first."
+fi
+
 
 mkdir -p "${initrd_dir}" || die
 pushd "${initrd_dir}" || die
