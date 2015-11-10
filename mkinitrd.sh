@@ -22,7 +22,7 @@ fi
 
 mkdir -p "${initrd_dir}" || die
 pushd "${initrd_dir}" || die
-mkdir -p bin lib dev etc mnt/root proc root sbin sys || die
+mkdir -p bin lib lib64 dev etc mnt/root proc root sbin sys || die
 
 # devices
 cp -a /dev/{null,console,tty,md?,sd*,urandom,random} "${initrd_dir}"/dev/ || die
