@@ -133,7 +133,7 @@ bs_create_cfg_files() {
 	chmod +x "${mntgentoo}"/etc/init.d/docker-services || die
 
 	# update mdadm.conf, important for initramfs!
-	cat <<-EOF > "${mntgentoo}"/etc/mdadm.conf
+	cat <<-EOF > "${mntgentoo}"/etc/mdadm.conf || die "cat failed"
 	DEVICE /dev/sd?*
 	ARRAY /dev/md0 metadata=1.2 name=root
 	ARRAY /dev/md1 metadata=1.2 name=swap
@@ -353,30 +353,33 @@ bs_install_initrfamfs() {
 	chroot_run 'cp -a /bin/busybox /usr/src/initramfs/bin/busybox'
 	chroot_run 'chroot /usr/src/initramfs /bin/busybox --install -s'
 
+	# other binaries
+	chroot_run 'cp -a /usr/bin/strace /usr/src/initramfs/bin/'
+
 	# needed for dropbear
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/passwd
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/passwd || die "cat failed"
 	root:x:0:0:root:/root:/bin/sh
 	EOF
 
 	# needed for dropbear
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/group
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/group || die "cat failed"
 	root:x:0:root
 	EOF
 
 	# needed for dropbear
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/resolv.conf
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/resolv.conf || die "cat failed"
 	nameserver ${IPV4_DEF_ROUTE}
 	nameserver 8.8.8.8
 	EOF
 
 	# TODO: copy pubkeys
 
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/mdadm.conf
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/mdadm.conf || die "cat failed"
 	DEVICE /dev/sd?*
 	ARRAY /dev/md0 metadata=1.2 name=root
 	EOF
 
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/init  || die "cat failed"
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/init || die "cat failed"
 	#!/bin/busybox sh
 
 	rescue_shell() {
