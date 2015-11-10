@@ -342,13 +342,10 @@ bs_install_initrfamfs() {
 
 bs_install_grub() {
 	# grub
-	sed -i -r \
-		-e 's#^[[:space:]]*initrd=#  initrd=initrd#' \
-		"${mntgentoo}"/etc/grub.d/10_linux || die
-	echo 'GRUB_CMDLINE_LINUX="net.ifnames=0"' >> "${mntgentoo}"/etc/default/grub
-	chroot_run 'grub2-install /dev/sda'
-	chroot_run 'grub2-install /dev/sdb'
-	chroot_run 'grub2-mkconfig -o /boot/grub/grub.cfg'
+
+	cp ./update-grub.sh "${mntgentoo}"/sbin/update-grub.sh
+	chroot_run 'chmod +x /sbin/update-grub.sh'
+	chroot_run '/sbin/update-grub.sh'
 }
 
 bs_update_runlevels() {
