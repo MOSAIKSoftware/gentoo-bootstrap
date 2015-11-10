@@ -326,9 +326,9 @@ bs_install_server_set() {
 bs_install_kernel() {
 	# alternatively: wget http://bin.vm03.srvhub.de/kernel-4.2.5
 
-	chroot_run 'cp /etc/paludis/kernel/config /usr/src/linux/.config'
-	chroot_run 'cd /usr/src/linux && make olddefconfig'
-	chroot_run 'cd /usr/src/linux && make -j4 && make modules_install && cp arch/x86/boot/bzImage /boot/kernel-$(readlink /usr/src/linux | sed "s/linux-//")'
+	cp ./mkkernel.sh "${mntgentoo}"/sbin/mkkernel.sh
+	chroot_run 'chmod +x /sbin/mkkernel.sh'
+	chroot_run '/sbin/mkkernel.sh'
 }
 
 bs_install_initrfamfs() {
