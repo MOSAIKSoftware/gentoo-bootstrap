@@ -347,7 +347,7 @@ bs_install_initrfamfs() {
 	chroot_run 'mkdir -p /usr/src/initramfs/etc/dropbear'
 	chroot_run 'cp -a /usr/sbin/dropbear /usr/src/initramfs/sbin/'
 	chroot_run 'cp -a /usr/bin/{dropbearkey,dbclient,dropbearconvert,dbscp} /usr/src/initramfs/bin/'
-	chroot_run 'cp -a /lib64/libz.so* /lib64/libcrypt.so* /lib64/libcrypt-*.so* /lib64/libutil* /lib64/ld-* /lib64/libc.so* /lib64/libc-*.so* /lib64/libnss* /lib64/libnsl* /usr/src/initramfs/lib64/'
+	chroot_run 'cp -a /lib64/libz.so* /lib64/libcrypt.so* /lib64/libcrypt-*.so* /lib64/libutil* /lib64/ld-* /lib64/libc.so* /lib64/libc-*.so* /lib64/libnss* /lib64/libnsl* /lib64/libresolv-*.so* /lib64/libresolv.so* /usr/src/initramfs/lib64/'
 
 	# busybox and symlinks
 	chroot_run 'cp -a /bin/busybox /usr/src/initramfs/bin/busybox'
@@ -361,6 +361,12 @@ bs_install_initrfamfs() {
 	# needed for dropbear
 	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/group
 	root:x:0:root
+	EOF
+
+	# needed for dropbear
+	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/resolv.conf
+	nameserver ${IPV4_DEF_ROUTE}
+	nameserver 8.8.8.8
 	EOF
 
 	# TODO: copy pubkeys
