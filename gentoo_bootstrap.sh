@@ -338,7 +338,7 @@ bs_install_initrfamfs() {
 	chroot_run 'cd /usr/src/initramfs && mkdir -p bin lib dev etc mnt/root proc root sbin sys'
 
 	# devices
-	chroot_run 'cp -a /dev/{null,console,tty,md,md?,sd*,urandom,random} /usr/src/initramfs/dev/'
+	chroot_run 'cp -a /dev/{null,console,tty,md?,sd*,urandom,random} /usr/src/initramfs/dev/'
 
 	# mdadm stuff
 	chroot_run 'cp -a /sbin/mdadm /usr/src/initramfs/sbin/'
