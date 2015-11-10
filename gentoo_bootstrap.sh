@@ -356,6 +356,10 @@ bs_install_initrfamfs() {
 	# other binaries
 	chroot_run 'cp -a /usr/bin/strace /usr/src/initramfs/bin/'
 
+	# for elinks
+	chroot_run 'cp -a /usr/bin/elinks /usr/src/initramfs/bin/'
+	chroot_run 'cp -a /lib64/libbz2.so* /usr/lib64/libgc.so* /usr/lib64/libexpat.so* /usr/src/initramfs/lib64/'
+
 	# needed for dropbear
 	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/passwd || die "cat failed"
 	root:x:0:0:root:/root:/bin/sh
