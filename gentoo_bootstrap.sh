@@ -387,9 +387,17 @@ bs_install_initrfamfs() {
 	mount -t devpts /dev/pts /dev/pts || rescue_shell
 
 	# start network
+	# start network
+	echo "Starting network"
 	ifconfig eth0 ${IPV4_IP}
-	sleep 4
+	ifconfig eth0 up
 	route add default gw ${IPV4_DEF_ROUTE}
+	_timeout=0
+	while ! ping -c 1 -W 1 ${IPV4_DEF_ROUTE} > /dev/null && [ \${_timeout} -lt 15 ] ; do
+		echo "Waiting for 192.168.0.12 - network interface might be down..."
+		_timeout=\$(( \${_timeout} + 1 ))
+		sleep 1
+	done
 
 	# start dropbear
 	dropbear -R -s -m -p 22922
@@ -397,14 +405,18 @@ bs_install_initrfamfs() {
 	/sbin/mdadm --assemble /dev/md0 --name=root || rescue_shell
 	sleep 2
 
+	# mount rootfs
+	mount -o ro /dev/md0 /mnt/root || rescue_shell
+
 	# clean up networking
-	killall dropbear
 	route del default gw ${IPV4_DEF_ROUTE}
 	ifconfig eth0 down
 	ip addr flush dev eth0
+	killall dropbear
 
-	# cleanup
-	mount -o ro /dev/md0 /mnt/root || rescue_shell
+	# Clean up.
+	echo "Unmounting stuff"
+	umount -l /dev/pts
 	umount /proc || rescue_shell
 	umount /sys || rescue_shell
 
