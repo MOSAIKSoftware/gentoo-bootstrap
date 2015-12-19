@@ -55,48 +55,21 @@ if [[ -z ${IPV4_IP} ||
 		-z ${IPV6_MASK} ||
 		-z ${IPV4_DEF_ROUTE} ||
 		-z ${IPV6_DEF_ROUTE} ||
-		-z ${MYHOSTNAME}
+		-z ${MYHOSTNAME} ||
+		-z ${PROFILE}
 		]] ; then
 	die "some required environment variables have not been set!"
 fi
 
 ### FUNCTIONS ###
+if [[ -e "./${PROFILE}/partition.sh" ]]; then die "partition.sh missing in profile" fi
+source "./${PROFILE}/partition.sh"
 
 bs_partition() {
 	# partitioning
-	parted -s /dev/sda mklabel gpt
-	parted -s /dev/sda mkpart primary 1MiB 4MiB || die "failed creating BIOS boot partition"
-	parted -s /dev/sda set 1 bios_grub on || die "failed setting bios_grub flag BIOS boot partition"
-	parted -s /dev/sda mkpart primary 4MiB 300MiB || die "failed creating /boot partition"
-	parted -s /dev/sda set 2 raid on || die "failed setting boot flag for /boot partition"
-	parted -s /dev/sda mkpart primary 300MiB 2300MiB || die "failed creating swap partition"
-	parted -s /dev/sda set 3 raid on || die "failed setting raid flag for swap partition"
-	parted -s /dev/sda mkpart primary 2300MiB 66% || die "failed creating root partition"
-	parted -s /dev/sda set 4 raid on || die "failed setting raid flag for root partition"
-	parted -s /dev/sda mkpart primary 66% 100% || die "failed creating btrfs partition"
-
-	parted -s /dev/sdb mklabel gpt
-	parted -s /dev/sdb mkpart primary 1MiB 4MiB || die "failed creating BIOS boot partition"
-	parted -s /dev/sdb set 1 bios_grub on || die "failed setting bios_grub flag BIOS boot partition"
-	parted -s /dev/sdb mkpart primary 4MiB 300MiB || die "failed creating /boot partition"
-	parted -s /dev/sdb set 2 raid on || die "failed setting boot flag for /boot partition"
-	parted -s /dev/sdb mkpart primary 300MiB 2300MiB || die "failed creating swap partition"
-	parted -s /dev/sdb set 3 raid on || die "failed setting raid flag for swap partition"
-	parted -s /dev/sdb mkpart primary 2300MiB 66% || die "failed creating root partition"
-	parted -s /dev/sdb set 4 raid on || die "failed setting raid flag for root partition"
-	parted -s /dev/sdb mkpart primary 66% 100% || die "failed creating btrfs partition"
-
-	yes "y" | mdadm --create --verbose /dev/md0 --name=root --level=mirror --raid-devices=2 /dev/sda4 /dev/sdb4 || die "failed creating softraid on /dev/sda4 /dev/sdb4"
-	mkfs.ext4 -L root /dev/md0 || die "failed creating ext4 on /dev/md0"
-	yes "y" | mdadm --create --verbose /dev/md1 --name=swap --level=mirror --raid-devices=2 /dev/sda3 /dev/sdb3 || die "failed creating softraid on /dev/sda3 /dev/sdb3"
-	mkswap -L swap /dev/md1 || die "failed creating swap partition on /dev/md1"
-	yes "y" | mdadm --create --verbose /dev/md2 --name=boot --level=mirror --raid-devices=2 /dev/sda2 /dev/sdb2 || die "failed creating softraid on /dev/sda2 /dev/sdb2"
-	mkfs.ext2 -L boot /dev/md2 || die "failed creating ext2 on /dev/md2"
-	mkfs.btrfs -L docker -m raid1 -d raid1 /dev/sda5 /dev/sdb5 || die "failed creating btrfs mirrored filesystem on /dev/sda5 /dev/sdb5"
-
-	mkdir -p "${mntgentoo}"/boot || die "failed creating ${mntgentoo}/boot"
-	mount /dev/md0 "${mntgentoo}" || die "failed mounting ${mntgentoo}"
-	mount /dev/md2 "${mntgentoo}"/boot || die "failed mounting ${mntgentoo}/boot"
+	bs_partition_disk_profile_create 
+	bs_partition_disk_profile_mkfs
+	bs_partition_disk_profile_mount
 }
 
 
