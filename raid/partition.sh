@@ -1,13 +1,7 @@
 # MD-RAID Based Setup
 
-# in: $mntgentoo 
+# in: $mntgentoo, $disk1, $disk2
 # out: $rootdisk
-
-# Raid Partition Profile 
-disk1=${disk1}
-disk2=${disk2}
-
-rootdisk=/dev/md0
 
 # partitioning
 function bs_partition_disk_profile_create () {
@@ -51,24 +45,3 @@ function bs_partition_disk_profile_mount () {
 	mount /dev/disk/by-label/boot "${mntgentoo}"/boot || die "failed mounting ${mntgentoo}/boot"
 }
 
-function bs_install_initrfamfs_disk_profile() {
-	cat <<-EOF > "${mntgentoo}"/usr/src/initramfs/etc/mdadm.conf
-	DEVICE /dev/sd?*
-	ARRAY /dev/md0 metadata=1.2 name=root
-	EOF
-}
-
-function bs_create_cfg_files_disk_profile () {
-	# update mdadm.conf, important for initramfs!
-	cat <<-EOF > "${mntgentoo}"/etc/mdadm.conf
-	DEVICE /dev/sd?*
-	ARRAY /dev/md0 metadata=1.2 name=root
-	ARRAY /dev/md1 metadata=1.2 name=swap
-	ARRAY /dev/md2 metadata=1.2 name=boot
-	EOF
-}
-
-function bs_install_grub_disk_profile () {
-	chroot_run "grub2-install ${disk1}"
-	chroot_run "grub2-install ${disk2}"
-}

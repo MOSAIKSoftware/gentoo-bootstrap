@@ -1,9 +1,5 @@
 # Raid Partition Profile 
 
-#which disk to operate on
-disk=/dev/sda
-
-rootdisk=/dev/sda4
 # partitioning
 function bs_partition_disk_profile_create () {
   parted -s ${disk} mklabel gpt
@@ -28,14 +24,3 @@ function bs_partition_disk_profile_mount () {
 	mount -rw /dev/disk/by-label/boot "${mntgentoo}"/boot || die "failed mounting ${mntgentoo}/boot"
 }
 
-function bs_install_initrfamfs_disk_profile() {
-	echo "noop"
-}
-
-function bs_create_cfg_files_disk_profile () {
-	echo "noop"
-}
-
-function bs_install_grub_disk_profile () {
-	chroot_run "grub2-install ${disk}"
-}

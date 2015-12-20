@@ -61,10 +61,16 @@ if [[ -z ${IPV4_IP} ||
 	die "some required environment variables have not been set!"
 fi
 
-### FUNCTIONS ###
+### PROFILES ###
+if [[ -e "./${PROFILE}/conf.sh" ]]; then die "conf.sh missing in profile" fi
 if [[ -e "./${PROFILE}/partition.sh" ]]; then die "partition.sh missing in profile" fi
+if [[ -e "./${PROFILE}/udate-grub.sh" ]]; then die "update-grub.sh missing in profile" fi
+
+source "./${PROFILE}/conf.sh"
 source "./${PROFILE}/partition.sh"
 
+
+### FUNCTIONS ###
 bs_partition() {
 	# partitioning
 	bs_partition_disk_profile_create 
@@ -316,7 +322,7 @@ bs_install_initrfamfs() {
 bs_install_grub() {
 	# grub
 
-	cp ./update-grub.sh "${mntgentoo}"/sbin/update-grub.sh
+	cp "./${PROFILE}/update-grub.sh" "${mntgentoo}"/sbin/update-grub.sh
 	chroot_run 'chmod +x /sbin/update-grub.sh'
 	chroot_run '/sbin/update-grub.sh'
 }
