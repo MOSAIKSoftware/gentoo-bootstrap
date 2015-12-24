@@ -128,7 +128,7 @@ bs_create_cfg_files() {
 	# configuration
 
 	# get our openrc init template for docker services
-	wget https://gist.githubusercontent.com/hasufell/406c35f275efd7ce652a/raw/145d8624f707ca7f3b07c079373da25952dfb447/docker-services.sh -O \
+	cp ./docker-services.sh \
 		"${mntgentoo}"/etc/init.d/docker-services || die
 	chmod +x "${mntgentoo}"/etc/init.d/docker-services || die
 
