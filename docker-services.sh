@@ -43,11 +43,19 @@ rmc() {
 update() {
 	if [ -z "${DONT_TOUCH}" ] ; then
 		ebegin "Updating image ${image}"
-		docker pull ${image}
+		if [ -n "${GIT_REPO_PATH}" ] ; then
+			if [ -d "${GIT_REPO_PATH}" ] ; then
+				git -C "${GIT_REPO_PATH}" pull --depth=1 ${GIT_REMOTE:-origin} ${GIT_BRANCH:-master}
+			else
+				git clone --depth=1 ${GIT_REPO_URL} --branch ${GIT_BRANCH:-master}
+			fi
+			docker build -t ${image} "${GIT_REPO_PATH}"
+		else
+			docker pull ${image}
+		fi
 		eend $?
 	fi
 }
-
 
 start() {
 	# decide whether we can just run the existing container or have to
