@@ -1,0 +1,55 @@
+---
+- name: Install new node from bootstrap scripts
+  hosts: all
+  vars:
+    bootstrap_config: 
+      MYHOSTNAME: gentoo-test
+      IPV4_IP: 192.168.250.100
+      IPV4_NETMASK: 255.255.255.0
+      IPV4_DEF_ROUTE: 192.168.250.1
+      IPV4_BRD: 192.168.250.255
+      IPV6_IP: ignore
+      IPV6_MASK: ignore
+      IPV6_DEF_ROUTE: ingore
+      PROFILE: singledisk
+  tasks: 
+  - name: Copy Bootstrap scripts
+    copy: src=../ dest=/opt/bootstrap group=root owner=root
+  - name: Check host
+    command: bash /opt/bootstrap/check-host.sh
+    environment: "{{bootstrap_config}}"
+  - name: "Bootstrap Host"
+    command: bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items:
+      - greeter
+      - partition
+  - name: "Stage 3"
+    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items: 
+      - prep_chroot
+      - create_cfg_files
+      - prep_install
+
+  - name : "Install"
+    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items: 
+      - install_server_set
+      - install_kernel    
+      - install_grub
+
+  - name : "Finish"
+    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items:
+      - update_runlevels
+      - cleanup
+  - name : "Postnote"
+    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items:
+      - postnote
+
+
