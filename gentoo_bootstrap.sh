@@ -40,9 +40,25 @@ dist="http://distfiles.gentoo.org/releases/${arch}/autobuilds/"
 stage3="$(wget -q -O- ${dist}/latest-stage3-${arch}${suffix}.txt | tail -n 1 | cut -f 1 -d ' ')"
 mntgentoo=/mnt/gentoo
 
+
+tasks=(	greeter
+	partition
+	stage3
+	prep_chroot
+	create_cfg_files
+	prep_install
+	install_server_set
+	install_kernel
+	install_grub
+	update_runlevels
+	cleanup
+	postnote )
+
+scripts_dir=$(dirname $0)
+RUN_CMD="$1"
 ########################
 
-
+cd "$scripts_dir"
 # sanity checks
 if [[ -z ${mntgentoo} || /${mntgentoo##+(/)} == '/' ]] ; then
 	die "invalid mountpoint for gentoo!"
@@ -62,15 +78,25 @@ if [[ -z ${IPV4_IP} ||
 fi
 
 ### PROFILES ###
-if [[ -e "./${PROFILE}/conf.sh" ]]; then die "conf.sh missing in profile" fi
-if [[ -e "./${PROFILE}/partition.sh" ]]; then die "partition.sh missing in profile" fi
-if [[ -e "./${PROFILE}/udate-grub.sh" ]]; then die "update-grub.sh missing in profile" fi
+echo "Profile: ${scripts_dir}/${PROFILE}"
+if [[ ! -e "${scripts_dir}/${PROFILE}/conf.sh" ]]; then 
+	die "conf.sh missing in profile" 
+fi
+if [[ ! -e "${scripts_dir}/${PROFILE}/partition.sh" ]]; then 
+	die "partition.sh missing in profile" 
+fi
+if [[ ! -e "${scripts_dir}/${PROFILE}/update-grub.sh" ]]; then
+ 	die "update-grub.sh missing in profile" 
+fi
 
-source "./${PROFILE}/conf.sh"
-source "./${PROFILE}/partition.sh"
-
+source "${scripts_dir}/${PROFILE}/conf.sh"
+source "${scripts_dir}/${PROFILE}/partition.sh"
 
 ### FUNCTIONS ###
+bs_greeter () {
+	echo "=== GENTOO BOOTSTRAP ==="
+}
+
 bs_partition() {
 	# partitioning
 	bs_partition_disk_profile_create 
@@ -356,18 +382,31 @@ bs_postnote() {
 }
 
 
+## 
+# Run tasks before and including $1 
+# remember if a task finished before
+bs_to() {
+	till_cmd=$1
+
+	for cmd in ${tasks[@]}; do
+		if [[ -e /tmp/bs_${cmd}_done ]]; then
+			echo "$cmd allready done"
+		else 
+			echo "running $cmd"	
+			bs_${cmd} && touch /tmp/bs_${cmd}_done	
+		fi
+
+		if [[ ${cmd} = ${till_cmd}  ]]; then 
+			break
+		fi
+
+	done
+}
+
 bs_all() {
-	bs_partition
-	bs_stage3
-	bs_prep_chroot
-	bs_create_cfg_files
-	bs_prep_install
-	bs_install_server_set
-	bs_install_kernel
-	bs_install_grub
-	bs_update_runlevels
-	bs_cleanup
-	bs_postnote
+	for cmd in ${tasks[@]}; do
+		bs_to ${cmd}
+	done
 }
 
 #################
@@ -375,4 +414,8 @@ bs_all() {
 
 if [[ -n ${RUN_ALL} ]] ; then
 	bs_all
+elif [[ -n ${RUN_CMD} ]] ; then
+	bs_to ${RUN_CMD}
+else 
+	echo "Usage: "
 fi
