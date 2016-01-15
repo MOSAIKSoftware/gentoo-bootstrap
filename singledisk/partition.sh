@@ -9,6 +9,7 @@ function bs_partition_disk_profile_create () {
 	parted -s ${disk} mkpart primary 300MiB 2300MiB || die "failed creating swap partition"
 	parted -s ${disk} mkpart primary 2300MiB 66% || die "failed creating root partition"
 	parted -s ${disk} mkpart primary 66% 100% || die "failed creating btrfs partition"
+	partprobe ${disk}
 }
 
 function bs_partition_disk_profile_mkfs () {
