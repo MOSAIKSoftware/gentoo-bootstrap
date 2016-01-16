@@ -10,7 +10,7 @@
 # * IPV4_DEF_ROUTE (ip only)
 # * IPV6_DEF_ROUTE (ip only)
 # * MYHOSTNAME
-
+# * PROFILE
 
 ### HELPER FUNCTIONS ###
 
@@ -305,6 +305,7 @@ bs_prep_install() {
 	chroot_run 'emerge -v1 sys-apps/paludis app-eselect/eselect-package-manager'
 	chroot_run 'eselect package-manager set paludis && . /etc/profile'
 	chroot_run 'emerge -v1 dev-vcs/git app-portage/eix sys-apps/etckeeper'
+	chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
 	chroot_run 'etckeeper init -d /etc && git -C /etc config --local user.email "root@foo.com" && git -C /etc config --local user.name "Root User" && git -C /etc commit -am "Initial commit"'
 	chroot_run 'git -C /etc submodule add https://github.com/hasufell/gentoo-server-config.git paludis && git -C /etc commit -am "Add paludis submodule"'
 	chroot_run 'mkdir -p /var/cache/paludis/names /var/cache/paludis/metadata /var/tmp/paludis /var/db/paludis/repositories'
@@ -392,8 +393,10 @@ bs_to() {
 		if [[ -e /tmp/bs_${cmd}_done ]]; then
 			echo "$cmd allready done"
 		else 
-			echo "running $cmd"	
-			bs_${cmd} && touch /tmp/bs_${cmd}_done	
+			echo "running $cmd"
+			# only output errors to stderr
+			# and log error and stdout to file
+			bs_${cmd} > /tmp/bs_${cmd}.log 2> >(tee bs_${cmd}.err >&2) && touch /tmp/bs_${cmd}_done	
 		fi
 
 		if [[ ${cmd} = ${till_cmd}  ]]; then 
@@ -409,6 +412,16 @@ bs_all() {
 	done
 }
 
+
+bs_clean() {
+	umount ${mntgentoo}/proc 
+	umount -l /mnt/gentoo/dev
+	umount -l /mnt/gentoo/sys
+	umount /mnt/gentoo/boot
+	umount  /mnt/gentoo/
+	rm /tmp/bs_*_done
+
+}
 #################
 
 

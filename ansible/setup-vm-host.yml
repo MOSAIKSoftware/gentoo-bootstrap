@@ -32,12 +32,17 @@
       - create_cfg_files
       - prep_install
 
+  - name : "Install Kernel"
+    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items: 
+      - install_kernel    
+ 
   - name : "Install"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
     environment: "{{bootstrap_config}}"
     with_items: 
       - install_server_set
-      - install_kernel    
       - install_grub
 
   - name : "Finish"
