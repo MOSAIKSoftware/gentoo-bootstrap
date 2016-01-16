@@ -7,7 +7,7 @@ die() {
 
 
 kernel_dir="/usr/src/linux"
-
+mount -o remount -rw /boot #this is strange?!
 
 cp /etc/paludis/kernel/config "${kernel_dir}"/.config || die
 cd "${kernel_dir}" || die
