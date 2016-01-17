@@ -12,6 +12,9 @@
 # * MYHOSTNAME
 # * PROFILE
 
+# STRICT MODE
+set -u
+
 ### HELPER FUNCTIONS ###
 
 # arg1: command to run inside gentoo chroot
@@ -31,15 +34,26 @@ die() {
 
 
 #tty output info
-# fd 3 logged stdout
-# fd 4 dupl of stdout
-exec 3> >(tee /tmp/bs.log >&1) 
-exec 4>&1
+# fd 3 info
+# fd 4 debug
+# fd 9 dupl of stdout
+exec 3> >(tee -a /tmp/bs.log >&1) 
+exec 4> >(tee -a /tmp/bs.log >&1) 
+exec 9>&1
 
 info() {
 	echo "$@" >&3
 }
 
+debug() {
+	echo "$@" >&4
+}
+
+# show calls in the logs
+preexec () {
+	debug $(caller 0)
+	debug "$FUNCNAME: $BASH_COMMAND"
+}
 ########################
 
 
@@ -71,8 +85,10 @@ tasks=(	greeter
 
 scripts_dir=$(dirname $0)
 
-RUN_TO_TASK="$1"
-PRECOMPILED_KERNEL=${PRECOMPILED_KERNEL:=yes}
+RUN_ALL=${RUN_ALL:-no}
+RUN_TO_TASK=${1:-no}
+PRECOMPILED_KERNEL=${PRECOMPILED_KERNEL:-yes}
+CLEANUP=${CLEANUP:-no}
 ########################
 
 cd "$scripts_dir"
@@ -425,7 +441,7 @@ bs_to() {
 
 	for cmd in ${tasks[@]}; do
 		if [[ -e /tmp/bs_${cmd}_done ]]; then
-			info "task $cmd allready done"
+			debug "task $cmd allready done"
 		else 
 			bs_run_task ${cmd}
 		fi
@@ -444,13 +460,20 @@ bs_run_task() {
 	cmd="$1"
 	log_base=/tmp/bs_${cmd}
 
-	# Open STDOUT as $LOG_FILE file for read and write.
-	exec 1> $log_base.log 2> >(tee $log_base.err >&4) 
+
+	# redirect output, stop spamming the console
+	exec 1> $log_base.log 
+	exec 2> >(tee -a $log_base.log >&9) 
+
+	#get info about running command
 
 	info "running task $cmd"
 	# only output errors to stderr
 	# and log error and stdout to file
+	set -o functrace
+	trap "preexec" DEBUG
 	bs_${cmd} && touch /tmp/bs_${cmd}_done	
+	trap - DEBUG
 }
 
 ## 
@@ -462,22 +485,30 @@ bs_all() {
 	done
 }
 
+usage() {
+	echo "-- Bootstrap -- Usage:";
+	echo "CLEANUP=yes: clean temp files and unmount"
+	echo "RUN_ALL=yes: run all tasks"
+	echo "RUN_TO_TASK=task: run from start to task"
+	echo "RUN_TASK=task: runt the specified task"
+	echo "-- Vars:"
+}
 #################
 
 #CLEANUP LEFTOVERS
-if [[ -n ${CLEANUP} ]] ; then
+if [[ "x${CLEANUP}" != "xno" ]] ; then
 	bs_clean
 fi
 
 # RUN ALL  RUN_ALL=yes
 # OR ALL UP TO A SPECIFIC TASK RUN_TO_TASK=install
 # OR A TASK $RUN_TASK=install
-if [[ -n ${RUN_ALL} ]] ; then
+if [[ "x${RUN_ALL}" != "xno" ]] ; then
 	bs_all
-elif [[ -n ${RUN_TO_TASK} ]] ; then
+elif [[ "x${RUN_TO_TASK}" != "xno" ]] ; then
 	bs_to ${RUN_TO_TASK}
-elif [[ -n ${RUN_TASK} ]] ; then
+elif [[ "x${RUN_TASK}" != "xno" ]] ; then
 	bs_run_task ${RUN_TASK}
 else 
-	info "Usage: "
+	usage
 fi
