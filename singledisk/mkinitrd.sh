@@ -8,6 +8,8 @@ die() {
 
 initrd_dir="/usr/src/initramfs"
 
+# need to be mounted rw, else it will be ro
+mount -o remount -rw /boot
 
 if [[ -z ${IPV4_IP} ||
 		-z ${IPV4_DEF_ROUTE}
