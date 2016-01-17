@@ -24,8 +24,20 @@ chroot_run() {
 }
 
 die() {
-  echo "$@"
+  echo "$@" >&2
   exit 1
+}
+
+
+
+#tty output info
+# fd 3 logged stdout
+# fd 4 dupl of stdout
+exec 3> >(tee /tmp/bs.log >&1) 
+exec 4>&1
+
+info() {
+	echo "$@" >&3
 }
 
 ########################
@@ -48,14 +60,19 @@ tasks=(	greeter
 	create_cfg_files
 	prep_install
 	install_server_set
+	install_initramfs 
 	install_kernel
 	install_grub
 	update_runlevels
+	copy_authorized_keys
 	cleanup
-	postnote )
+	postnote
+ 	)
 
 scripts_dir=$(dirname $0)
-RUN_CMD="$1"
+
+RUN_TO_TASK="$1"
+PRECOMPILED_KERNEL=${PRECOMPILED_KERNEL:=yes}
 ########################
 
 cd "$scripts_dir"
@@ -72,13 +89,13 @@ if [[ -z ${IPV4_IP} ||
 		-z ${IPV4_DEF_ROUTE} ||
 		-z ${IPV6_DEF_ROUTE} ||
 		-z ${MYHOSTNAME} ||
-		-z ${PROFILE}
+		-z ${PROFILE} 
 		]] ; then
 	die "some required environment variables have not been set!"
 fi
 
 ### PROFILES ###
-echo "Profile: ${scripts_dir}/${PROFILE}"
+info "Profile: ${scripts_dir}/${PROFILE}"
 if [[ ! -e "${scripts_dir}/${PROFILE}/conf.sh" ]]; then 
 	die "conf.sh missing in profile" 
 fi
@@ -94,12 +111,13 @@ source "${scripts_dir}/${PROFILE}/partition.sh"
 
 ### FUNCTIONS ###
 bs_greeter () {
-	echo "=== GENTOO BOOTSTRAP ==="
+	info "=== GENTOO BOOTSTRAP ==="
 }
 
 bs_partition() {
 	# partitioning
-	bs_partition_disk_profile_create 
+	bs_partition_disk_profile_create
+	sleep 2
 	bs_partition_disk_profile_mkfs
 	bs_partition_disk_profile_mount
 }
@@ -108,19 +126,19 @@ bs_partition() {
 bs_stage3(){
 	# stage3 bootstrapping
 	cd "${mntgentoo}" || die "/mnt/gentoo missing!"
-	echo "Downloading and extracting ${stage3}..."
+	info "Downloading and extracting ${stage3}..."
 	wget -c "${dist}/${stage3}" || die "failed to get stage3"
 	bunzip2 -c $(basename ${stage3}) | tar --exclude "./etc/hosts" --exclude "./sys/*" -xf - || die "failed to extract stage3"
 	rm -f $(basename ${stage3}) || die "failed to remove stage3"
 
-	echo "Bootstrapped ${stage3} into ${mntgentoo}"
+	info "Bootstrapped ${stage3} into ${mntgentoo}"
 	ls --color -lah "${mntgentoo}"
 }
 
 
 bs_prep_chroot() {
 	# preparing chroot
-	echo "Mounting required directories into gentoo chroot"
+	info "Mounting required directories into gentoo chroot"
 	mount -t proc proc "${mntgentoo}"/proc || die "failed to mount proc"
 	mount --rbind /sys "${mntgentoo}"/sys || die "failed to rbind sys"
 	mount --make-rslave "${mntgentoo}"/sys || die "failed to make-rslave sys"
@@ -145,7 +163,7 @@ bs_create_cfg_files() {
 	ARRAY /dev/md2 metadata=1.2 name=boot
 	EOF
 
-	echo "Copying resolv.conf"
+	info "Copying resolv.conf"
 	cp /etc/resolv.conf "${mntgentoo}"/etc/resolv.conf || die "failed to copy resolv.conf to chroot"
 
 	cat <<-EOF > "${mntgentoo}"/etc/env.d/90cave || die "cat failed"
@@ -297,7 +315,7 @@ bs_create_cfg_files() {
 
 
 bs_prep_install() {
-	chroot_run 'ln -sf /etc/init.d/net.lo /etc/init.d/net.eth0 && ln -s /etc/init.d/net.eth0 /run/openrc/started/net.eth0'
+	chroot_run 'ln -sf /etc/init.d/net.lo /etc/init.d/net.eth0 && ln -sf /etc/init.d/net.eth0 /run/openrc/started/net.eth0'
 	chroot_run 'echo UTC > /etc/timezone'
 	chroot_run 'eselect locale set en_US.utf8 && env-update && source /etc/profile'
 	chroot_run 'emerge-webrsync'
@@ -330,26 +348,34 @@ bs_install_server_set() {
 
 
 bs_install_kernel() {
-	# alternatively: wget http://bin.vm03.srvhub.de/kernel-4.2.5
-
-	cp ./mkkernel.sh "${mntgentoo}"/sbin/mkkernel.sh
-	chroot_run 'chmod +x /sbin/mkkernel.sh'
-	chroot_run '/sbin/mkkernel.sh'
+	if [[ "x$PRECOMPILED_KERNEL" = "xyes" ]]; then
+		info "Fetching precompiled kernel"
+		wget http://bin.vm03.srvhub.de/kernel-4.2.5 -O "${mntgentoo}"/boot/kernel
+	else 
+		info "Compiling kernel"
+		cp ./mkkernel.sh "${mntgentoo}"/sbin/mkkernel.sh
+		chroot_run 'chmod +x /sbin/mkkernel.sh'
+		chroot_run '/sbin/mkkernel.sh'
+	fi
 }
 
-bs_install_initrfamfs() {
-	# alternatively: wget http://bin.vm03.srvhub.de/initrd-4.2.4
-
-	cp ./mkinitrd.sh "${mntgentoo}"/sbin/mkinitrd.sh
-	chroot_run 'chmod +x /sbin/mkinitrd.sh'
-	chroot_run '/sbin/mkinitrd.sh'
+bs_install_initramfs() {
+	if [[ "x$PRECOMPILED_KERNEL" = "xyes" ]]; then
+		info "Fetching precompiled initrd"
+		wget http://bin.vm03.srvhub.de/initrd-4.2.4 -O "${mntgentoo}"/boot/initrd
+	else 
+		info "Creating initrd"
+		cp ${scripts_dir}/${PROFILE}/mkinitrd.sh "${mntgentoo}"/sbin/mkinitrd.sh
+		chroot_run 'chmod +x /sbin/mkinitrd.sh'
+		chroot_run '/sbin/mkinitrd.sh'
+	fi
 }
 
 
 bs_install_grub() {
 	# grub
 
-	cp "./${PROFILE}/update-grub.sh" "${mntgentoo}"/sbin/update-grub.sh
+	cp "${scripts_dir}/${PROFILE}/update-grub.sh" "${mntgentoo}"/sbin/update-grub.sh
 	chroot_run 'chmod +x /sbin/update-grub.sh'
 	chroot_run '/sbin/update-grub.sh'
 }
@@ -368,18 +394,26 @@ bs_update_runlevels() {
 
 
 bs_cleanup() {
-	# prepare reboot
 	umount -l "${mntgentoo}"/dev{/shm,/pts,}
 	umount "${mntgentoo}"{/boot,/sys,/proc,}
+	umount ${mntgentoo}
+	rm /tmp/bs_*_done
 }
 
+bs_copy_authorized_keys() {
+	if [[ -e ~root/.ssh/authorized_keys ]] ; then
+		info "copying root authorized_keys"
+		mkdir "${mntgentoo}"/root/.ssh
+		cp ~root/.ssh/authorized_keys "${mntgentoo}"/root/.ssh/authorized_keys 
+	fi
+}
 
 bs_postnote() {
-	echo
-	echo "Now create a root password via 'passwd' and reboot!"
-	echo "Then disable password authentication and root login"
-	echo "in /etc/ssh/sshd_config."
-	echo
+	info ""
+	info "Now create a root password via 'passwd' and reboot!"
+	info "Then disable password authentication and root login"
+	info "in /etc/ssh/sshd_config."
+	info
 }
 
 
@@ -391,12 +425,9 @@ bs_to() {
 
 	for cmd in ${tasks[@]}; do
 		if [[ -e /tmp/bs_${cmd}_done ]]; then
-			echo "$cmd allready done"
+			info "task $cmd allready done"
 		else 
-			echo "running $cmd"
-			# only output errors to stderr
-			# and log error and stdout to file
-			bs_${cmd} > /tmp/bs_${cmd}.log 2> >(tee bs_${cmd}.err >&2) && touch /tmp/bs_${cmd}_done	
+			bs_run_task ${cmd}
 		fi
 
 		if [[ ${cmd} = ${till_cmd}  ]]; then 
@@ -406,29 +437,47 @@ bs_to() {
 	done
 }
 
+## 
+# run a specific task 
+# log to /tmp/bs_TASK.log and /tmp/bs_TASK.err
+bs_run_task() {
+	cmd="$1"
+	log_base=/tmp/bs_${cmd}
+
+	# Open STDOUT as $LOG_FILE file for read and write.
+	exec 1> $log_base.log 2> >(tee $log_base.err >&4) 
+
+	info "running task $cmd"
+	# only output errors to stderr
+	# and log error and stdout to file
+	bs_${cmd} && touch /tmp/bs_${cmd}_done	
+}
+
+## 
+# Run all tasks in order
+# 
 bs_all() {
 	for cmd in ${tasks[@]}; do
-		bs_to ${cmd}
+		bs_run_task ${cmd}
 	done
 }
 
-
-bs_clean() {
-	umount ${mntgentoo}/proc 
-	umount -l /mnt/gentoo/dev
-	umount -l /mnt/gentoo/sys
-	umount /mnt/gentoo/boot
-	umount  /mnt/gentoo/
-	rm /tmp/bs_*_done
-
-}
 #################
 
+#CLEANUP LEFTOVERS
+if [[ -n ${CLEANUP} ]] ; then
+	bs_clean
+fi
 
+# RUN ALL  RUN_ALL=yes
+# OR ALL UP TO A SPECIFIC TASK RUN_TO_TASK=install
+# OR A TASK $RUN_TASK=install
 if [[ -n ${RUN_ALL} ]] ; then
 	bs_all
-elif [[ -n ${RUN_CMD} ]] ; then
-	bs_to ${RUN_CMD}
+elif [[ -n ${RUN_TO_TASK} ]] ; then
+	bs_to ${RUN_TO_TASK}
+elif [[ -n ${RUN_TASK} ]] ; then
+	bs_run_task ${RUN_TASK}
 else 
-	echo "Usage: "
+	info "Usage: "
 fi
