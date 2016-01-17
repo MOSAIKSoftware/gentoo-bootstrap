@@ -32,10 +32,11 @@
       - create_cfg_files
       - prep_install
 
-  - name : "Install Kernel"
+  - name : "Install Kernel and Initramfs"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
     environment: "{{bootstrap_config}}"
     with_items: 
+      - install_initramfs   
       - install_kernel    
  
   - name : "Install"
@@ -45,16 +46,17 @@
       - install_server_set
       - install_grub
 
-  - name : "Finish"
+  - name : "Runlevels and SSH Keys"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
     environment: "{{bootstrap_config}}"
     with_items:
       - update_runlevels
-      - cleanup
-  - name : "Postnote"
+      - copy_authorized_keys
+
+  - name : "Done"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
     environment: "{{bootstrap_config}}"
     with_items:
+      - cleanup
       - postnote
-
 
