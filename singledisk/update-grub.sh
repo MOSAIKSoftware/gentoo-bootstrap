@@ -5,7 +5,8 @@ die() {
   exit 1
 }
 
-
+# and agian read only
+mount -o remount  -rw /boot
 sed -i -r \
 	-e 's#^[[:space:]]*initrd=$#  initrd=initrd#' \
 	/etc/grub.d/10_linux || die
