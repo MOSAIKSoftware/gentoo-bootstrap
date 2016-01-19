@@ -309,6 +309,7 @@ bs_prep_install() {
 	chroot_run 'etckeeper init -d /etc'
 	chroot_run 'cd /etc git submodule add https://github.com/hasufell/gentoo-server-config.git paludis'
 	chroot_run 'git clone --depth=1 https://github.com/hasufell/libressl.git /var/db/paludis/repositories/libressl'
+	chroot_run 'git clone --depth=1 https://github.com/MOSAIKSoftware/mosaik-overlay.git /var/db/paludis/repositories/mosaik-overlay'
 	chroot_run 'git clone --depth=1 https://github.com/hasufell/gentoo-binhost.git /usr/gentoo-binhost'
 	chroot_run 'mkdir /etc/paludis/tmp && touch /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chown paludisbuild:paludisbuild /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chmod g+w /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chmod g+w /etc/paludis/tmp && chgrp paludisbuild /etc/paludis/tmp'
 	chroot_run 'chgrp paludisbuild /dev/tty && env-update && . /etc/profile && cave sync'
