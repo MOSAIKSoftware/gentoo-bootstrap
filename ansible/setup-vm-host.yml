@@ -32,8 +32,8 @@
       - prep_chroot
       - create_cfg_files
       - prep_install
-      - prep_paludis
       - prep_etckeeper
+      - prep_paludis
  
   - name : "Install Server Set"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
