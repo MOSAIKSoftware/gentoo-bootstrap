@@ -49,11 +49,6 @@ debug() {
 	echo "$@" >&4
 }
 
-# show calls in the logs
-preexec () {
-	debug $(caller 0)
-	debug "$FUNCNAME: $BASH_COMMAND"
-}
 ########################
 
 
@@ -65,7 +60,7 @@ busybox_version=x86_64
 dist="http://distfiles.gentoo.org/releases/${arch}/autobuilds/"
 stage3="$(wget -q -O- ${dist}/latest-stage3-${arch}${suffix}.txt | tail -n 1 | cut -f 1 -d ' ')"
 mntgentoo=/mnt/gentoo
-
+config_repo="https://github.com/MOSAIKSoftware/gentoo-server-config.git"
 
 tasks=(	greeter
 	partition
@@ -73,6 +68,8 @@ tasks=(	greeter
 	prep_chroot
 	create_cfg_files
 	prep_install
+	prep_paludis
+	prep_etckeeper
 	install_server_set
 	install_initramfs 
 	install_kernel
@@ -86,7 +83,8 @@ tasks=(	greeter
 scripts_dir=$(dirname $0)
 
 RUN_ALL=${RUN_ALL:-no}
-RUN_TO_TASK=${1:-no}
+RUN_TASK=${1:-no}
+RUN_TO_TASK=${RUN_TO_TASK:-no}
 PRECOMPILED_KERNEL=${PRECOMPILED_KERNEL:-yes}
 CLEANUP=${CLEANUP:-no}
 ########################
@@ -330,7 +328,9 @@ bs_create_cfg_files() {
 }
 
 
+# Installs paludis and sets basic settings
 bs_prep_install() {
+	# FIXME to complicated too many things in here
 	chroot_run 'ln -sf /etc/init.d/net.lo /etc/init.d/net.eth0 && ln -sf /etc/init.d/net.eth0 /run/openrc/started/net.eth0'
 	chroot_run 'echo UTC > /etc/timezone'
 	chroot_run 'eselect locale set en_US.utf8 && env-update && source /etc/profile'
@@ -339,19 +339,26 @@ bs_prep_install() {
 	chroot_run 'emerge -v1 sys-apps/paludis app-eselect/eselect-package-manager'
 	chroot_run 'eselect package-manager set paludis && . /etc/profile'
 	chroot_run 'emerge -v1 dev-vcs/git app-portage/eix sys-apps/etckeeper'
+}
+
+bs_prep_paludis() {
 	chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
-	chroot_run 'etckeeper init -d /etc && git -C /etc config --local user.email "root@foo.com" && git -C /etc config --local user.name "Root User" && git -C /etc commit -am "Initial commit"'
-	chroot_run 'git -C /etc submodule add https://github.com/hasufell/gentoo-server-config.git paludis && git -C /etc commit -am "Add paludis submodule"'
+	chroot_run 'git -C /etc submodule add '${config_repo}' paludis && git -C /etc commit -am "Add paludis submodule"'
 	chroot_run 'mkdir -p /var/cache/paludis/names /var/cache/paludis/metadata /var/tmp/paludis /var/db/paludis/repositories'
 	chroot_run 'mkdir -p /srv/binhost && chown paludisbuild:paludisbuild /srv/binhost && chmod g+w /srv/binhost'
 	chroot_run 'chown paludisbuild:paludisbuild /var/tmp/paludis && chmod g+w /var/tmp/paludis'
 	chroot_run 'rm -r /usr/portage && git clone --depth=1 https://github.com/gentoo/gentoo.git /usr/portage && mkdir /usr/portage/distfiles && chown paludisbuild:paludisbuild /usr/portage/distfiles && chmod g+w /usr/portage/distfiles'
-	chroot_run 'etckeeper init -d /etc'
-	chroot_run 'cd /etc git submodule add https://github.com/hasufell/gentoo-server-config.git paludis'
+	chroot_run 'cd /etc git submodule add '${config_repo}' paludis'
 	chroot_run 'git clone --depth=1 https://github.com/hasufell/libressl.git /var/db/paludis/repositories/libressl'
 	chroot_run 'git clone --depth=1 https://github.com/hasufell/gentoo-binhost.git /usr/gentoo-binhost'
 	chroot_run 'mkdir /etc/paludis/tmp && touch /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chown paludisbuild:paludisbuild /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chmod g+w /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chmod g+w /etc/paludis/tmp && chgrp paludisbuild /etc/paludis/tmp'
 	chroot_run 'chgrp paludisbuild /dev/tty && env-update && . /etc/profile && cave sync'
+}
+
+#sets up etckeeper
+bs_prep_etckeeper() {
+	chroot_run 'etckeeper init -d /etc && git -C /etc config --local user.email "root@foo.com" && git -C /etc config --local user.name "Root User" && git -C /etc commit -am "Initial commit"'
+	chroot_run 'etckeeper init -d /etc'
 }
 
 
@@ -364,6 +371,7 @@ bs_install_server_set() {
 
 
 bs_install_kernel() {
+	mount -o remount -rw /mnt/gentoo/boot
 	if [[ "x$PRECOMPILED_KERNEL" = "xyes" ]]; then
 		info "Fetching precompiled kernel"
 		wget http://bin.vm03.srvhub.de/kernel-4.2.5 -O "${mntgentoo}"/boot/kernel
@@ -376,6 +384,7 @@ bs_install_kernel() {
 }
 
 bs_install_initramfs() {
+	mount -o remount -rw /mnt/gentoo/boot
 	if [[ "x$PRECOMPILED_KERNEL" = "xyes" ]]; then
 		info "Fetching precompiled initrd"
 		wget http://bin.vm03.srvhub.de/initrd-4.2.4 -O "${mntgentoo}"/boot/initrd
@@ -440,11 +449,7 @@ bs_to() {
 	till_cmd=$1
 
 	for cmd in ${tasks[@]}; do
-		if [[ -e /tmp/bs_${cmd}_done ]]; then
-			debug "task $cmd allready done"
-		else 
-			bs_run_task ${cmd}
-		fi
+		bs_run_task ${cmd}
 
 		if [[ ${cmd} = ${till_cmd}  ]]; then 
 			break
@@ -458,22 +463,26 @@ bs_to() {
 # log to /tmp/bs_TASK.log and /tmp/bs_TASK.err
 bs_run_task() {
 	cmd="$1"
-	log_base=/tmp/bs_${cmd}
+	if [[ -e /tmp/bs_${cmd}_done ]]; then
+		debug "task $cmd allready done"
+	else 
+		log_base=/tmp/bs_${cmd}
 
+		# redirect output, stop spamming the console
+		exec 1> $log_base.log 
+		exec 2> >(tee -a $log_base.log >&9) 
 
-	# redirect output, stop spamming the console
-	exec 1> $log_base.log 
-	exec 2> >(tee -a $log_base.log >&9) 
+		#get info about running command
 
-	#get info about running command
-
-	info "running task $cmd"
-	# only output errors to stderr
-	# and log error and stdout to file
-	set -o functrace
-	trap "preexec" DEBUG
-	bs_${cmd} && touch /tmp/bs_${cmd}_done	
-	trap - DEBUG
+		info "** running task $cmd"
+		info "** tasklog: $log_base.log"
+		# only output errors to stderr
+		# and log error and stdout to file
+		#BASH_XTRACEFD=4 
+		#set -o xtrace
+		bs_${cmd} && touch /tmp/bs_${cmd}_done	
+		#set +o xtrace
+	fi
 }
 
 ## 
