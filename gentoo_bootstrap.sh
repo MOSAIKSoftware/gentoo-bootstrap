@@ -342,6 +342,7 @@ bs_prep_install() {
 }
 
 bs_prep_paludis() {
+	chroot_run 'rm /etc/.gitmodules' #remove gitmodules
 	chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
 	chroot_run 'git -C /etc submodule add '${config_repo}' paludis && git -C /etc commit -am "Add paludis submodule"'
 	chroot_run 'mkdir -p /var/cache/paludis/names /var/cache/paludis/metadata /var/tmp/paludis /var/db/paludis/repositories'

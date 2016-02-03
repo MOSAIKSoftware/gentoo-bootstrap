@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#see: https://wiki.gentoo.org/wiki/Syslinux
 die() {
   echo "$@"
   exit 1
@@ -7,9 +8,10 @@ die() {
 
 # and agian read only
 mount -o remount  -rw /boot
-sed -i -r \
-	-e 's#^[[:space:]]*initrd=$#  initrd=initrd#' \
-	/etc/grub.d/10_linux || die
-echo 'GRUB_CMDLINE_LINUX="net.ifnames=0"' >> /etc/default/grub || die
-grub2-install /dev/sda || die
-grub2-mkconfig -o /boot/grub/grub.cfg || die
+
+dd bs=440 conv=notrunc count=1 if=/usr/share/syslinux/gptmbr.bin of=/dev/sda
+
+mkdir /boot/extlinux
+extlinux --install /boot/extlinux
+ln -snf . /boot/boot
+cp /usr/share/syslinux/{menu.c32,memdisk,libcom32.c32,libutil.c32} /boot/extlinux
