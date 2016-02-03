@@ -68,8 +68,8 @@ tasks=(	greeter
 	prep_chroot
 	create_cfg_files
 	prep_install
-	prep_paludis
 	prep_etckeeper
+	prep_paludis
 	install_server_set
 	install_initramfs 
 	install_kernel
@@ -342,8 +342,8 @@ bs_prep_install() {
 }
 
 bs_prep_paludis() {
-	chroot_run 'rm /etc/.gitmodules' #remove gitmodules
-	chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
+chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
+
 	chroot_run 'git -C /etc submodule add '${config_repo}' paludis && git -C /etc commit -am "Add paludis submodule"'
 	chroot_run 'mkdir -p /var/cache/paludis/names /var/cache/paludis/metadata /var/tmp/paludis /var/db/paludis/repositories'
 	chroot_run 'mkdir -p /srv/binhost && chown paludisbuild:paludisbuild /srv/binhost && chmod g+w /srv/binhost'
@@ -358,6 +358,9 @@ bs_prep_paludis() {
 
 #sets up etckeeper
 bs_prep_etckeeper() {
+	chroot_run 'rm /etc/.gitmodules || true' #remove gitmodules
+	chroot_run 'rm -rf /etc/.git || true' 
+	
 	chroot_run 'etckeeper init -d /etc && git -C /etc config --local user.email "root@foo.com" && git -C /etc config --local user.name "Root User" && git -C /etc commit -am "Initial commit"'
 	chroot_run 'etckeeper init -d /etc'
 }
