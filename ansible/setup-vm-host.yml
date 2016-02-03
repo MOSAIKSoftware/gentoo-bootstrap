@@ -28,9 +28,19 @@
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
     environment: "{{bootstrap_config}}"
     with_items: 
+      - stage3
       - prep_chroot
       - create_cfg_files
       - prep_install
+      - prep_paludis
+      - prep_etckeeper
+ 
+  - name : "Install Server Set"
+    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
+    environment: "{{bootstrap_config}}"
+    with_items: 
+      - install_server_set
+
 
   - name : "Install Kernel and Initramfs"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
@@ -38,13 +48,8 @@
     with_items: 
       - install_initramfs   
       - install_kernel    
- 
-  - name : "Install"
-    command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
-    environment: "{{bootstrap_config}}"
-    with_items: 
-      - install_server_set
       - install_grub
+ 
 
   - name : "Runlevels and SSH Keys"
     command:  bash /opt/bootstrap/gentoo_bootstrap.sh {{item}}
