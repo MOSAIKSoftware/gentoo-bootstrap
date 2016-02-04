@@ -15,3 +15,11 @@ mkdir /boot/extlinux
 extlinux --install /boot/extlinux
 ln -snf . /boot/boot
 cp /usr/share/syslinux/{menu.c32,memdisk,libcom32.c32,libutil.c32} /boot/extlinux
+
+cat <<-EOF > /boot/extlinux/extlinux.conf 
+DEFAULT gentoo
+  
+LABEL gentoo
+      LINUX /boot/kernel
+      INITRD /boot/initrd
+EOF

@@ -32,7 +32,7 @@
       - prep_chroot
       - create_cfg_files
       - prep_install
-      - prep_etckeeper
+      - prep_etc
       - prep_paludis
  
   - name : "Install Server Set"

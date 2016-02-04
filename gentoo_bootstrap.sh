@@ -68,7 +68,7 @@ tasks=(	greeter
 	prep_chroot
 	create_cfg_files
 	prep_install
-	prep_etckeeper
+	prep_etc
 	prep_paludis
 	install_server_set
 	install_initramfs 
@@ -86,6 +86,7 @@ RUN_ALL=${RUN_ALL:-no}
 RUN_TASK=${1:-no}
 RUN_TO_TASK=${RUN_TO_TASK:-no}
 PRECOMPILED_KERNEL=${PRECOMPILED_KERNEL:-yes}
+PRECOMPILED_INITRD=${PRECOMPILED_INITRD:-no}
 CLEANUP=${CLEANUP:-no}
 ########################
 
@@ -342,14 +343,11 @@ bs_prep_install() {
 }
 
 bs_prep_paludis() {
-chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
-
-	chroot_run 'git -C /etc submodule add '${config_repo}' paludis && git -C /etc commit -am "Add paludis submodule"'
+	#cleanup nicer for debugging
 	chroot_run 'mkdir -p /var/cache/paludis/names /var/cache/paludis/metadata /var/tmp/paludis /var/db/paludis/repositories'
 	chroot_run 'mkdir -p /srv/binhost && chown paludisbuild:paludisbuild /srv/binhost && chmod g+w /srv/binhost'
-	chroot_run 'chown paludisbuild:paludisbuild /var/tmp/paludis && chmod g+w /var/tmp/paludis'
 	chroot_run 'rm -r /usr/portage && git clone --depth=1 https://github.com/gentoo/gentoo.git /usr/portage && mkdir /usr/portage/distfiles && chown paludisbuild:paludisbuild /usr/portage/distfiles && chmod g+w /usr/portage/distfiles'
-	chroot_run 'cd /etc git submodule add '${config_repo}' paludis'
+	chroot_run 'chown paludisbuild:paludisbuild /var/tmp/paludis && chmod g+w /var/tmp/paludis'
 	chroot_run 'git clone --depth=1 https://github.com/hasufell/libressl.git /var/db/paludis/repositories/libressl'
 	chroot_run 'git clone --depth=1 https://github.com/hasufell/gentoo-binhost.git /usr/gentoo-binhost'
 	chroot_run 'mkdir /etc/paludis/tmp && touch /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chown paludisbuild:paludisbuild /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chmod g+w /etc/paludis/tmp/cave_resume /etc/paludis/tmp/cave-search-index && chmod g+w /etc/paludis/tmp && chgrp paludisbuild /etc/paludis/tmp'
@@ -357,12 +355,18 @@ chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
 }
 
 #sets up etckeeper
-bs_prep_etckeeper() {
+bs_prep_etc() {
 	chroot_run 'rm /etc/.gitmodules || true' #remove gitmodules
 	chroot_run 'rm -rf /etc/.git || true' 
-	
+	chroot_run 'rm -rf /etc/paludis' # Fix error for git checkout
+	chroot_run 'rm -rf /var/db/paludis/repositories/libressl || true'
+	chroot_run 'rm -rf /usr/gentoo-binhost' 
+
+
 	chroot_run 'etckeeper init -d /etc && git -C /etc config --local user.email "root@foo.com" && git -C /etc config --local user.name "Root User" && git -C /etc commit -am "Initial commit"'
 	chroot_run 'etckeeper init -d /etc'
+	chroot_run 'git -C /etc submodule add '${config_repo}' paludis && git -C /etc commit -am "Add paludis submodule"'
+	chroot_run 'cd /etc git submodule add '${config_repo}' paludis'
 }
 
 
@@ -389,7 +393,7 @@ bs_install_kernel() {
 
 bs_install_initramfs() {
 	mount -o remount -rw /mnt/gentoo/boot
-	if [[ "x$PRECOMPILED_KERNEL" = "xyes" ]]; then
+	if [[ "x$PRECOMPILED_INITRD" = "xyes" ]]; then
 		info "Fetching precompiled initrd"
 		wget http://bin.vm03.srvhub.de/initrd-4.2.4 -O "${mntgentoo}"/boot/initrd
 	else 
