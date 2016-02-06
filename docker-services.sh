@@ -47,9 +47,9 @@ update() {
 			if [ -d "${GIT_REPO_PATH}" ] ; then
 				git -C "${GIT_REPO_PATH}" pull --depth=1 ${GIT_REMOTE:-origin} ${GIT_BRANCH:-master}
 			else
-				git clone --depth=1 ${GIT_REPO_URL} --branch ${GIT_BRANCH:-master}
+				git clone --depth=1 --branch ${GIT_BRANCH:-master} ${GIT_REPO_URL} "${GIT_REPO_PATH}"
 			fi
-			docker build -t ${image} "${GIT_REPO_PATH}"
+			docker build -t ${image} "${GIT_BUILD_PATH:-${GIT_REPO_PATH}}"
 		else
 			docker pull ${image}
 		fi
