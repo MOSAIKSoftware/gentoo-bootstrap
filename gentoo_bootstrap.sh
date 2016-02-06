@@ -319,6 +319,7 @@ bs_prep_install() {
 bs_install_server_set() {
 	# installation
 	chroot_run 'echo server >> /var/lib/portage/world' # add server set to world file manually
+	chroot_run 'echo toolchain >> /var/lib/portage/world' # add toolchain set to world file manually
 	chroot_run "chgrp paludisbuild /dev/tty && cave resolve -e world --permit-old-version '*/*' -F sys-fs/eudev -U sys-fs/udev -x -f"
 	chroot_run "chgrp paludisbuild /dev/tty && cave resolve -e world --permit-old-version '*/*' -F sys-fs/eudev -U sys-fs/udev -x"
 }
