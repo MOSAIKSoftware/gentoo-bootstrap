@@ -40,16 +40,33 @@ rmc() {
 	fi
 }
 
+# config variables:
+#   GIT_REPO_PATH: local path to the repository, will be created if not a dir
+#                  if empty, 'docker pull' is used
+#   GIT_REPO_URL: clone url (must be set if GIT_REPO_PATH is set)
+#   GIT_BRANCH: the branch to use (default master)
+#   GIT_BUILD_PATH: build folder where the Dockerfile is,
+#                   relative to GIT_REPO_PATH, default empty
 update() {
 	if [ -z "${DONT_TOUCH}" ] ; then
 		ebegin "Updating image ${image}"
 		if [ -n "${GIT_REPO_PATH}" ] ; then
+			[ -n "${GIT_REPO_URL}" ] || {
+				eerror "GIT_REPO_URL variable not set!"
+				return 1
+			}
 			if [ -d "${GIT_REPO_PATH}" ] ; then
-				git -C "${GIT_REPO_PATH}" pull --depth=1 ${GIT_REMOTE:-origin} ${GIT_BRANCH:-master}
+				git -C "${GIT_REPO_PATH}" fetch --depth=1 \
+					origin
+				git -C "${GIT_REPO_PATH}" reset --hard \
+					origin/${GIT_BRANCH:-master}
 			else
-				git clone --depth=1 --branch ${GIT_BRANCH:-master} ${GIT_REPO_URL} "${GIT_REPO_PATH}"
+				git clone --depth=1 --branch \
+					${GIT_BRANCH:-master} ${GIT_REPO_URL} \
+					"${GIT_REPO_PATH}"
 			fi
-			docker build -t ${image} "${GIT_BUILD_PATH:-${GIT_REPO_PATH}}"
+			docker build -t ${image} \
+				"${GIT_REPO_PATH%/}/${GIT_BUILD_PATH}"
 		else
 			docker pull ${image}
 		fi
