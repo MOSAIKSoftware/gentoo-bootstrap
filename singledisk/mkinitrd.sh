@@ -5,7 +5,7 @@ die() {
   exit 1
 }
 
-
+monitor_ip="8.8.8.8"
 initrd_dir="/usr/src/initramfs"
 
 # need to be mounted rw, else it will be ro
@@ -61,8 +61,8 @@ EOF
 
 # needed for dropbear
 cat <<EOF > "${initrd_dir}"/etc/resolv.conf || die "cat failed"
-nameserver ${IPV4_DEF_ROUTE}
 nameserver 8.8.8.8
+nameserver 8.8.4.4
 EOF
 
 # TODO: copy pubkeys
@@ -90,7 +90,7 @@ ifconfig eth0 ${IPV4_IP}
 ifconfig eth0 up
 route add default gw ${IPV4_DEF_ROUTE}
 _timeout=0
-while ! ping -c 1 -W 1 ${IPV4_DEF_ROUTE} > /dev/null && [ \${_timeout} -lt 15 ] ; do
+while ! ping -c 1 -W 1 ${monitor_ip} > /dev/null && [ \${_timeout} -lt 15 ] ; do
 	echo "Waiting for ${IPV4_IP} - network interface might be down..."
 	_timeout=\$(( \${_timeout} + 1 ))
 	sleep 1

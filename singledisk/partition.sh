@@ -13,11 +13,11 @@ part=(
 		'name 3 "root"'
 		'mkpart primary 66% 100%' 
 		'name 4 "docker"'
-		)
+	)
 
-		for cmd in "${part[@]}"; do
-			parted -a optimal -s "${disk}" || die "failed setting up partitions: $cmd"
-		done	
+	for cmd in "${part[@]}"; do
+		parted -a optimal -s "${disk}" $cmd || die "failed setting up partitions: $cmd"
+	done	
 
 	partprobe ${disk}
 }
