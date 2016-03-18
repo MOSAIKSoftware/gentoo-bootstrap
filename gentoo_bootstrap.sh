@@ -131,6 +131,9 @@ bs_create_cfg_files() {
 	cp ./docker-services.sh \
 		"${mntgentoo}"/etc/init.d/docker-services || die
 	chmod +x "${mntgentoo}"/etc/init.d/docker-services || die
+	cp ./docker-network.sh \
+		"${mntgentoo}"/etc/init.d/docker-network.sh || die
+	chmod +x "${mntgentoo}"/etc/init.d/docker-network.sh || die
 
 	# update mdadm.conf, important for initramfs!
 	cat <<-EOF > "${mntgentoo}"/etc/mdadm.conf || die "cat failed"

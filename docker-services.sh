@@ -1,7 +1,6 @@
 #!/sbin/runscript
 # Copyright 2015 Julian Ospald
 # Distributed under the terms of the GNU General Public License v2
-# $Id$
 
 extra_commands="clean rmc update"
 description_clean="Remove dangling images"
@@ -11,6 +10,17 @@ description_update="For updating the images, you still need to restart them your
 image="${image:-gentoo${SVCNAME#docker}}"
 container="${container:-${SVCNAME#docker-}}"
 pidfile=/run/${SVCNAME}.pid
+MAIN_NET="${MAIN_NET:-bridge}"
+
+if [ "${MAIN_NET}" != "bridge" ] ; then
+	need_dependencies="${need_dependencies} docker-network-${MAIN_NET}"
+fi
+
+if [ -n "${ADD_NETWORKS}" ] ; then
+	for i in ${ADD_NETWORKS} ; do
+		need_dependencies="${need_dependencies} docker-network-${i}"
+	done
+fi
 
 depend() {
 	need docker ${need_dependencies}
@@ -77,7 +87,8 @@ update() {
 start() {
 	# decide whether we can just run the existing container or have to
 	# create it from scratch
-	if docker inspect --type=container --format="{{.}}" ${container} >/dev/null 2>&1 ; then
+	if docker inspect --type=container --format="{{.}}" \
+			${container} >/dev/null 2>&1 ; then
 		ebegin "Starting container ${container}"
 		start-stop-daemon --start \
 			--pidfile "${pidfile}" \
@@ -91,11 +102,21 @@ start() {
 			--exec docker \
 			-- \
 				run -ti -d \
+				$([ "${MAIN_NET}" != "bridge" ] && echo "--net=${MAIN_NET}") \
 				--name=${container} \
 				${RUN_ARGS} \
 				${image}
+
+		if [ -n "${ADD_NETWORKS}" ] ; then
+			local i
+			ebegin "Connecting to additional networks"
+			for i in ${ADD_NETWORKS} ; do
+				docker network connect ${i} ${container}
+			done
+		fi
 	fi
 	create_pid_file
+
 	eend $?
 }
 
@@ -109,3 +130,4 @@ stop() {
 	rm -f "${pidfile}"
 	eend $?
 }
+
